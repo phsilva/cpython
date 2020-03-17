@@ -709,7 +709,13 @@ _Py_CheckRecursiveCall(PyThreadState *tstate, const char *where)
 static int do_raise(PyThreadState *tstate, PyObject *exc, PyObject *cause);
 static int unpack_iterable(PyThreadState *, PyObject *, int, int, PyObject **);
 
-#define _Py_TracingPossible(ceval) ((ceval)->tracing_possible)
+static inline int
+_Py_TracingPossible(PyThreadState *tstate)
+{
+    assert(tstate != NULL);
+    assert(tstate->interp != NULL);
+    return tstate->interp->ceval.tracing_possible;
+}
 
 
 PyObject *
@@ -845,7 +851,7 @@ _PyEval_EvalFrameDefault(PyThreadState *tstate, PyFrameObject *f, int throwflag)
 #ifdef LLTRACE
 #define FAST_DISPATCH() \
     { \
-        if (!lltrace && !_Py_TracingPossible(ceval) && !PyDTrace_LINE_ENABLED()) { \
+        if (!lltrace && !_Py_TracingPossible(tstate) && !PyDTrace_LINE_ENABLED()) { \
             f->f_lasti = INSTR_OFFSET(); \
             NEXTOPARG(); \
             goto *opcode_targets[opcode]; \
@@ -855,7 +861,7 @@ _PyEval_EvalFrameDefault(PyThreadState *tstate, PyFrameObject *f, int throwflag)
 #else
 #define FAST_DISPATCH() \
     { \
-        if (!_Py_TracingPossible(ceval) && !PyDTrace_LINE_ENABLED()) { \
+        if (!_Py_TracingPossible(tstate) && !PyDTrace_LINE_ENABLED()) { \
             f->f_lasti = INSTR_OFFSET(); \
             NEXTOPARG(); \
             goto *opcode_targets[opcode]; \
@@ -1272,7 +1278,7 @@ main_loop:
 
         /* line-by-line tracing support */
 
-        if (_Py_TracingPossible(ceval) &&
+        if (_Py_TracingPossible(tstate) &&
             tstate->c_tracefunc != NULL && !tstate->tracing) {
             int err;
             /* see maybe_call_line_trace
@@ -3651,7 +3657,7 @@ exception_unwind:
                 PUSH(val);
                 PUSH(exc);
                 JUMPTO(handler);
-                if (_Py_TracingPossible(ceval)) {
+                if (_Py_TracingPossible(tstate)) {
                     int needs_new_execution_window = (f->f_lasti < instr_lb || f->f_lasti >= instr_ub);
                     int needs_line_update = (f->f_lasti == instr_lb || f->f_lasti < instr_prev);
                     /* Make sure that we trace line after exception if we are in a new execution
@@ -4643,7 +4649,7 @@ _PyEval_SetTrace(PyThreadState *tstate, Py_tracefunc func, PyObject *arg)
         return -1;
     }
 
-    struct _ceval_runtime_state *ceval = &tstate->interp->runtime->ceval;
+    struct _ceval_state *ceval = &tstate->interp->ceval;
     PyObject *traceobj = tstate->c_traceobj;
     ceval->tracing_possible += (func != NULL) - (tstate->c_tracefunc != NULL);
 
