@@ -98,7 +98,6 @@ struct _is {
     PyObject *codec_search_path;
     PyObject *codec_search_cache;
     PyObject *codec_error_registry;
-    int codecs_initialized;
 
     /* fs_codec.encoding is initialized to NULL.
        Later, it is set to a non-NULL string by _PyUnicode_InitEncodings(). */

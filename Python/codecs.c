@@ -119,7 +119,7 @@ PyObject *_PyCodec_Lookup(const char *encoding)
     PyUnicode_InternInPlace(&v);
 
     /* First, try to lookup the name in the registry dictionary */
-    PyObject *result = PyDict_GetItemWithError(interp->codec_search_cache, v);
+    PyObject *result = NULL;
     if (result != NULL) {
         Py_INCREF(result);
         Py_DECREF(v);
@@ -169,12 +169,6 @@ PyObject *_PyCodec_Lookup(const char *encoding)
         goto onError;
     }
 
-    /* Cache and return the result */
-    if (PyDict_SetItem(interp->codec_search_cache, v, result) < 0) {
-        Py_DECREF(result);
-        goto onError;
-    }
-    Py_DECREF(v);
     return result;
 
  onError:
@@ -185,7 +179,6 @@ PyObject *_PyCodec_Lookup(const char *encoding)
 int _PyCodec_Forget(const char *encoding)
 {
     PyObject *v;
-    int result;
 
     PyInterpreterState *interp = _PyInterpreterState_GET_UNSAFE();
     if (interp->codec_search_path == NULL) {
@@ -200,11 +193,7 @@ int _PyCodec_Forget(const char *encoding)
         return -1;
     }
 
-    /* Drop the named codec from the internal cache */
-    result = PyDict_DelItem(interp->codec_search_cache, v);
-    Py_DECREF(v);
-
-    return result;
+    return 0;
 }
 
 /* Codec registry encoding check API. */
@@ -1530,7 +1519,5 @@ static int _PyCodecRegistry_Init(void)
     if (mod == NULL) {
         return -1;
     }
-    Py_DECREF(mod);
-    interp->codecs_initialized = 1;
     return 0;
 }
